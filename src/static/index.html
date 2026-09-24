@@ -480,6 +480,7 @@
                 document.getElementById('emptyState').style.display = 'none';
                 document.getElementById('editorForm').style.display = 'block';
                 document.getElementById('editorActions').style.display = 'flex';
+                this.updateDeleteButtonVisibility();
             }
 
             hideEditor() {
@@ -488,6 +489,12 @@
                 document.getElementById('editorActions').style.display = 'none';
                 document.getElementById('editorTitle').textContent = 'Select a note to edit';
                 this.currentNote = null;
+            }
+
+            // 只有「已保存」的笔记（currentNote 存在且 id 有效）才显示删除按钮
+            updateDeleteButtonVisibility() {
+                const deleteBtn = document.getElementById('deleteBtn');
+                deleteBtn.style.display = (this.currentNote && this.currentNote.id) ? '' : 'none';
             }
 
             async saveNote(isAutoSave = false) {
@@ -530,7 +537,8 @@
 
                     const savedNote = await response.json();
                     this.currentNote = savedNote;
-                    
+                    this.updateDeleteButtonVisibility();
+
                     // Update notes list
                     const existingIndex = this.notes.findIndex(n => n.id === savedNote.id);
                     if (existingIndex >= 0) {
