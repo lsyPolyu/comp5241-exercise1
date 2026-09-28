@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "flask",
+  "env": {
+    "NOTETAKER_VERCEL": "1"
+  },
+  "functions": {
+    "src/main.py": {
+      "excludeFiles": "{src/app.py,tests/**,database/**,venv/**,.claude/**}"
+    }
+  }
+}

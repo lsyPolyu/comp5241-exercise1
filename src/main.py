@@ -8,10 +8,13 @@ from flask_cors import CORS
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.note import note_bp
+from src.routes.translation import translation_bp
 from src.models.note import Note
+from src.database_config import database_uri
 
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+app = Flask(__name__, static_folder=os.path.join(ROOT_DIR, 'public'))
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
 
 # Enable CORS for all routes
 CORS(app)
@@ -19,14 +22,11 @@ CORS(app)
 # register blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(note_bp, url_prefix='/api')
-# configure database to use repository-root `database/app.db`
-ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-DB_PATH = os.path.join(ROOT_DIR, 'database', 'app.db')
-# ensure database directory exists
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+app.register_blueprint(translation_bp, url_prefix='/api')
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri(ROOT_DIR)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql+psycopg2://'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 300}
 db.init_app(app)
 with app.app_context():
     db.create_all()

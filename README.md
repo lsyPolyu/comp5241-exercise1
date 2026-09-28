@@ -12,10 +12,7 @@ A modern, responsive web application for managing personal notes with a beautifu
 - **Responsive Design**: Works perfectly on desktop and mobile devices
 - **Modern UI**: Beautiful gradient design with smooth animations
 - **Real-time Updates**: Instant feedback and updates
-
-## 🚀 Live Demo
-
-The application is deployed and accessible at: **https://3dhkilc88dkk.manus.space**
+- **AI Translation**: Translate note content into a selected language and view the result separately
 
 ## 🛠 Technology Stack
 
@@ -30,7 +27,8 @@ The application is deployed and accessible at: **https://3dhkilc88dkk.manus.spac
 - **Flask-CORS**: Cross-origin resource sharing support
 
 ### Database
-- **SQLite**: Lightweight, file-based database for data persistence
+- **SQLite**: Local development when `DATABASE_URL` is not set
+- **PostgreSQL**: Used when `DATABASE_URL` is set, including on Vercel
 
 ## 📁 Project Structure
 
@@ -42,13 +40,15 @@ notetaking-app/
 │   │   └── note.py          # Note model with database schema
 │   ├── routes/
 │   │   ├── user.py          # User API routes (template)
-│   │   └── note.py          # Note API endpoints
-│   ├── static/
-│   │   ├── index.html       # Frontend application
-│   │   └── favicon.ico      # Application icon
-│   ├── database/
-│   │   └── app.db           # SQLite database file
+│   │   ├── note.py          # Note API endpoints
+│   │   └── translation.py   # DeepSeek translation endpoint
+│   ├── database_config.py   # Database selection
 │   └── main.py              # Flask application entry point
+├── public/
+│   ├── index.html           # Frontend application
+│   └── favicon.ico          # Application icon
+├── database/
+│   └── app.db               # SQLite database file
 ├── venv/                    # Python virtual environment
 ├── requirements.txt         # Python dependencies
 └── README.md               # This file
@@ -79,12 +79,22 @@ notetaking-app/
    pip install -r requirements.txt
    ```
 
-4. **Run the application**
+4. **Set translation configuration on the server (PowerShell example)**
+   ```powershell
+   $env:DEEPSEEK_API_KEY = Read-Host 'DeepSeek API Key'
+   # Optional: $env:DEEPSEEK_MODEL = 'deepseek-flash'
+   ```
+   The default model is `deepseek-flash`; set `DEEPSEEK_MODEL` only to use another supported model.
+   Set the key in the same terminal that starts Flask, then restart Flask if it is already running.
+   `OPENAI_API_KEY` is not read by this translation endpoint.
+   Keep the key out of source files and commits.
+
+5. **Run the application**
    ```bash
    python src/main.py
    ```
 
-5. **Access the application**
+6. **Access the application**
    - Open your browser and go to `http://localhost:5001`
 
 ## 📡 API Endpoints
@@ -96,6 +106,14 @@ notetaking-app/
 - `PUT /api/notes/<id>` - Update a note
 - `DELETE /api/notes/<id>` - Delete a note
 - `GET /api/notes/search?q=<query>` - Search notes
+- `POST /api/translate` - Translate text without changing or saving the note
+
+Translation request: `{"text":"Hello","target_language":"fr"}`. The response is
+`{"translation":"Bonjour"}`. Supported languages are `en`, `zh-CN`, `es`,
+`fr`, `de`, `ja`, and `ko`. The endpoint requires `DEEPSEEK_API_KEY` in the server
+environment and optionally reads `DEEPSEEK_MODEL`. The DeepSeek call uses Python's
+standard library, so no additional package is needed. Run local API tests with
+`python -m unittest discover -s tests -v`; a live provider test requires a real key.
 
 ### Request/Response Format
 ```json
@@ -119,6 +137,7 @@ notetaking-app/
 ### Editor Panel
 - **Title Input**: Edit note titles
 - **Content Textarea**: Rich text editing area
+- **Translation**: Select a target language, translate the current content, and review the read-only result beside the original. Translation never saves or replaces the note.
 - **Save Button**: Manual save option (auto-save also available)
 - **Delete Button**: Remove notes with confirmation
 - **Real-time Updates**: Changes reflected immediately
@@ -145,20 +164,46 @@ CREATE TABLE note (
 
 ## 🚀 Deployment
 
-The application is configured for easy deployment with:
-- CORS enabled for cross-origin requests
-- Host binding to `0.0.0.0` for external access
-- Production-ready Flask configuration
-- Persistent SQLite database
+### Vercel and Neon
+
+Vercel uses the Flask `app` in `src/main.py`, selected explicitly by
+`pyproject.toml`. `src/app.py` is an unrelated local test file and is excluded
+from the deployment. Vercel serves `public/` directly; local Flask serves the
+same files.
+
+Create a Neon PostgreSQL database before deploying. In the Vercel project's
+**Settings → Environment Variables**, configure:
+
+- `DATABASE_URL` (required): the Neon PostgreSQL connection string, preferably
+  the pooled connection string with SSL enabled.
+- `DEEPSEEK_API_KEY` (required for translation): a DeepSeek API key.
+- `DEEPSEEK_MODEL` (optional): defaults to `deepseek-flash`.
+- `FLASK_SECRET_KEY` (optional for the current note features): needed if Flask
+  sessions are added later.
+
+Set variables for every Vercel environment you intend to use (Preview and/or
+Production). `NOTETAKER_VERCEL=1` is supplied by `vercel.json` and makes the
+app fail at startup if `DATABASE_URL` is missing; it never writes SQLite in a
+Vercel function. The app creates its tables on startup. Do not put connection
+strings or keys in source files, README, or Git. Local development without
+`DATABASE_URL` continues to use `database/app.db`; this SQLite data is separate
+from Neon and is not copied automatically.
+
+Before deployment, run `python -m unittest discover -s tests -v`. After Neon is
+created, verify the PostgreSQL connection and note create/read/update/delete
+against that database, then check the Vercel Preview deployment before release.
 
 ## 🔧 Configuration
 
 ### Environment Variables
-- `FLASK_ENV`: Set to `development` for debug mode
-- `SECRET_KEY`: Flask secret key for sessions
+- `DATABASE_URL`: PostgreSQL when set; otherwise local SQLite
+- `DEEPSEEK_API_KEY`: required for translation
+- `DEEPSEEK_MODEL`: optional, defaults to `deepseek-flash`
+- `FLASK_SECRET_KEY`: optional unless session features are used
 
 ### Database Configuration
-- Database file: `src/database/app.db`
+- Local SQLite file: `database/app.db`
+- Vercel database: PostgreSQL through `DATABASE_URL` (required)
 - Automatic table creation on first run
 - SQLAlchemy ORM for database operations
 

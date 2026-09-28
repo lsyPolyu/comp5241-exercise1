@@ -67,6 +67,8 @@ venv.bak/
 # Editor directories and files
 .idea/
 .vscode/
+.claude/
+.vercel/
 *.sublime-project
 *.sublime-workspace
 

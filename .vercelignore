@@ -1,0 +1,8 @@
+.env
+.env.*
+.claude/
+.vercel/
+venv/
+database/
+tests/
+src/app.py
